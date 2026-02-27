@@ -11,6 +11,10 @@ services:
       - CACHE_DIR=/app/data
     volumes:
       - indexer-data:/app/data
+    deploy:
+      resources:
+        limits:
+          memory: 6g
     restart: unless-stopped
 
 volumes:

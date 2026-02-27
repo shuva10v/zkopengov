@@ -47,15 +47,18 @@ export async function fetchAllBalances(
       startKey: lastKey,
     });
 
-    if (page.length === 0) break;
+    const pageLen = page.length;
+    if (pageLen === 0) break;
 
-    for (const [key, accountInfo] of page) {
+    // Extract the last key before processing (we only need the hex key for pagination)
+    lastKey = page[pageLen - 1][0].toHex();
+
+    // Extract only primitive values from each entry to allow GC of heavy codec objects
+    for (let i = 0; i < pageLen; i++) {
       try {
-        const accountId = key.args[0].toString();
-        const data = (accountInfo as any).data;
-        const free = BigInt(data.free.toString());
-        const reserved = BigInt(data.reserved.toString());
-        const total = free + reserved;
+        const accountId = page[i][0].args[0].toString();
+        const data = (page[i][1] as any).data;
+        const total = BigInt(data.free.toString()) + BigInt(data.reserved.toString());
 
         if (total >= MIN_BALANCE) {
           balances.set(accountId, total);
@@ -63,16 +66,19 @@ export async function fetchAllBalances(
       } catch {
         // Skip accounts that fail to decode
       }
+      // Release reference to allow GC of the codec objects
+      page[i] = null as any;
     }
 
-    totalScanned += page.length;
-    lastKey = page[page.length - 1][0].toHex();
+    totalScanned += pageLen;
 
-    console.log(
-      `[balance-fetcher] Scanned ${totalScanned} accounts, ${balances.size} with >= 1 DOT...`
-    );
+    if (totalScanned % 50000 === 0 || pageLen < PAGE_SIZE) {
+      console.log(
+        `[balance-fetcher] Scanned ${totalScanned} accounts, ${balances.size} with >= 1 DOT...`
+      );
+    }
 
-    if (page.length < PAGE_SIZE) break;
+    if (pageLen < PAGE_SIZE) break;
   }
 
   console.log(
