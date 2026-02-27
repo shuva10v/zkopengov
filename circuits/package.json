@@ -1,0 +1,22 @@
+{
+  "name": "zk-opengov-circuits",
+  "version": "1.0.0",
+  "description": "ZK circuits for private voting on Polkadot OpenGov",
+  "scripts": {
+    "compile": "bash scripts/compile.sh",
+    "setup": "bash scripts/setup.sh",
+    "export-verifier": "bash scripts/export-verifier.sh",
+    "generate-fixtures": "node test/fixtures/generate-fixtures.js",
+    "test": "mocha test/**/*.test.js --timeout 120000",
+    "build": "npm run compile && npm run setup && npm run export-verifier"
+  },
+  "dependencies": {
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7",
+    "snarkjs": "^0.7.4"
+  },
+  "devDependencies": {
+    "mocha": "^10.2.0",
+    "chai": "^4.3.10"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "_comment": "This is a placeholder. Run 'npm run generate-fixtures' to generate a real example with valid Merkle proofs.",
+  "ownershipRoot": "0",
+  "balancesRoot": "0",
+  "proposalId": "42",
+  "voteChoice": "1",
+  "tier": "0",
+  "nullifier": "0",
+  "tierConfig": "0",
+  "secret": "111",
+  "address": "1001",
+  "balance": "50",
+  "ownershipPathElements": ["0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0"],
+  "ownershipPathIndices": ["0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0"],
+  "balancesPathElements": ["0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0"],
+  "balancesPathIndices": ["0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0","0"],
+  "tierMin": "1",
+  "tierMax": "100"
+}
