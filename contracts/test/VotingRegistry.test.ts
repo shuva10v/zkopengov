@@ -202,6 +202,124 @@ describe("VotingRegistry", function () {
     ).to.be.revertedWith("Not owner");
   });
 
+  // ---- Block-to-root reverse mapping ----
+
+  it("Should populate blockToBalancesRoot on submitBalancesRoot", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    const root = randomBytes32();
+    await registry.connect(treeBuilder).submitBalancesRoot(root, 100);
+
+    expect(await registry.blockToBalancesRoot(100)).to.equal(root);
+    expect(await registry.getSubmittedBlockCount()).to.equal(1);
+    expect(await registry.submittedBlocks(0)).to.equal(100);
+  });
+
+  it("Should return correct root via getBalancesRootForBlock", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    const root1 = randomBytes32();
+    const root2 = randomBytes32();
+    await registry.connect(treeBuilder).submitBalancesRoot(root1, 100);
+    await registry.connect(treeBuilder).submitBalancesRoot(root2, 200);
+
+    expect(await registry.getBalancesRootForBlock(100)).to.equal(root1);
+    expect(await registry.getBalancesRootForBlock(200)).to.equal(root2);
+    expect(await registry.getBalancesRootForBlock(150)).to.equal(ethers.ZeroHash);
+  });
+
+  it("Should revert when submitting duplicate block", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    await registry.connect(treeBuilder).submitBalancesRoot(randomBytes32(), 100);
+
+    await expect(
+      registry.connect(treeBuilder).submitBalancesRoot(randomBytes32(), 100)
+    ).to.be.revertedWith("Block already has root");
+  });
+
+  it("Should support backfilling blocks in any order", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    const root300 = randomBytes32();
+    const root100 = randomBytes32();
+    const root200 = randomBytes32();
+
+    await registry.connect(treeBuilder).submitBalancesRoot(root300, 300);
+    await registry.connect(treeBuilder).submitBalancesRoot(root100, 100);
+    await registry.connect(treeBuilder).submitBalancesRoot(root200, 200);
+
+    expect(await registry.getSubmittedBlockCount()).to.equal(3);
+    expect(await registry.getBalancesRootForBlock(100)).to.equal(root100);
+    expect(await registry.getBalancesRootForBlock(200)).to.equal(root200);
+    expect(await registry.getBalancesRootForBlock(300)).to.equal(root300);
+  });
+
+  // ---- findBalancesRootForProposal ----
+
+  it("Should find exact match in findBalancesRootForProposal", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    const root = randomBytes32();
+    await registry.connect(treeBuilder).submitBalancesRoot(root, 100);
+
+    const [foundRoot, foundBlock] = await registry.findBalancesRootForProposal(100);
+    expect(foundRoot).to.equal(root);
+    expect(foundBlock).to.equal(100);
+  });
+
+  it("Should find nearest-before in findBalancesRootForProposal", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    const root100 = randomBytes32();
+    const root200 = randomBytes32();
+    const root300 = randomBytes32();
+
+    await registry.connect(treeBuilder).submitBalancesRoot(root100, 100);
+    await registry.connect(treeBuilder).submitBalancesRoot(root200, 200);
+    await registry.connect(treeBuilder).submitBalancesRoot(root300, 300);
+
+    // Query for block 250 — should return root at block 200
+    const [foundRoot, foundBlock] = await registry.findBalancesRootForProposal(250);
+    expect(foundRoot).to.equal(root200);
+    expect(foundBlock).to.equal(200);
+  });
+
+  it("Should revert findBalancesRootForProposal when no snapshot exists before proposal block", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    await registry.connect(treeBuilder).submitBalancesRoot(randomBytes32(), 100);
+
+    await expect(
+      registry.findBalancesRootForProposal(50)
+    ).to.be.revertedWith("No snapshot before proposal block");
+  });
+
+  it("Should revert findBalancesRootForProposal on empty submittedBlocks", async function () {
+    const { registry } = await loadFixture(deployRegistryFixture);
+
+    await expect(
+      registry.findBalancesRootForProposal(100)
+    ).to.be.revertedWith("No snapshot before proposal block");
+  });
+
+  it("Should accumulate multiple submissions correctly", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    const roots = [];
+    for (let i = 1; i <= 5; i++) {
+      const root = randomBytes32();
+      roots.push(root);
+      await registry.connect(treeBuilder).submitBalancesRoot(root, i * 100);
+    }
+
+    expect(await registry.getSubmittedBlockCount()).to.equal(5);
+
+    for (let i = 0; i < 5; i++) {
+      expect(await registry.getBalancesRootForBlock((i + 1) * 100)).to.equal(roots[i]);
+    }
+  });
+
   // ---- View helpers ----
 
   it("Should return correct registration count and data", async function () {

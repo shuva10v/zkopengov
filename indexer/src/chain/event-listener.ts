@@ -74,49 +74,72 @@ export async function fetchRegistrations(
 }
 
 /**
- * Set up a real-time listener for new Registered events.
+ * Poll for new Registered events periodically.
+ *
+ * Uses eth_getLogs (queryFilter) instead of eth_newFilter, since
+ * pallet-revive RPC does not support filter-based subscriptions.
  *
  * @param provider - ethers.js JSON-RPC provider
  * @param registryAddress - Address of the VotingRegistry contract
  * @param callback - Called for each new registration event
- * @returns A cleanup function to stop listening
+ * @param startAfterIndex - Ignore events with index <= this value (default: -1)
+ * @param intervalMs - Polling interval in milliseconds (default: 30s)
+ * @returns A cleanup function to stop polling
  */
 export function listenForRegistrations(
   provider: ethers.Provider,
   registryAddress: string,
-  callback: (event: RegistrationEvent) => void
+  callback: (event: RegistrationEvent) => void,
+  startAfterIndex: number = -1,
+  intervalMs: number = 30_000
 ): () => void {
   console.log(
-    `[event-listener] Listening for new Registered events on ${registryAddress}...`
+    `[event-listener] Polling for new Registered events on ${registryAddress} every ${intervalMs / 1000}s...`
   );
 
   const contract = new ethers.Contract(registryAddress, REGISTRY_ABI, provider);
+  let lastSeenIndex = startAfterIndex;
+  let stopped = false;
 
-  const handler = (
-    index: bigint,
-    account: string,
-    commitment: bigint,
-    event: any
-  ) => {
-    const registration: RegistrationEvent = {
-      index: Number(index),
-      address: account,
-      commitment: commitment.toString(),
-    };
+  const poll = async () => {
+    if (stopped) return;
+    try {
+      const filter = contract.filters.Registered();
+      const events = await contract.queryFilter(filter, -1000); // last ~1000 blocks
 
-    console.log(
-      `[event-listener] New registration: index=${registration.index}, address=${registration.address}`
-    );
+      for (const event of events) {
+        const parsed = contract.interface.parseLog({
+          topics: event.topics as string[],
+          data: event.data,
+        });
+        if (!parsed) continue;
 
-    callback(registration);
+        const index = Number(parsed.args.index);
+        if (index <= lastSeenIndex) continue;
+
+        lastSeenIndex = index;
+        const registration: RegistrationEvent = {
+          index,
+          address: parsed.args.account,
+          commitment: parsed.args.commitment.toString(),
+        };
+
+        console.log(
+          `[event-listener] New registration: index=${registration.index}, address=${registration.address}`
+        );
+        callback(registration);
+      }
+    } catch (err) {
+      console.warn("[event-listener] Polling error:", err);
+    }
   };
 
-  contract.on("Registered", handler);
+  const timer = setInterval(poll, intervalMs);
 
-  // Return cleanup function
   return () => {
-    contract.off("Registered", handler);
-    console.log("[event-listener] Stopped listening for events");
+    stopped = true;
+    clearInterval(timer);
+    console.log("[event-listener] Stopped polling for events");
   };
 }
 

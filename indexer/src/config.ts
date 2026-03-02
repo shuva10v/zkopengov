@@ -32,6 +32,16 @@ export interface Config {
   /** Use an archive node — enables querying at the first block of today.
    *  When false, uses the latest finalized block instead (works on pruned nodes). */
   useArchiveNode: boolean;
+  /** S3 bucket name for tree data uploads (empty = skip S3 upload) */
+  s3Bucket: string;
+  /** AWS region for S3 */
+  s3Region: string;
+  /** AWS access key ID for S3 */
+  s3AccessKeyId: string;
+  /** AWS secret access key for S3 */
+  s3SecretAccessKey: string;
+  /** Custom S3 endpoint (for Cloudflare R2 / MinIO) */
+  s3Endpoint: string;
   /** Balance tier configuration */
   tiers: Tier[];
 }
@@ -41,11 +51,16 @@ export const config: Config = {
   evmRpc: process.env.EVM_RPC || "http://localhost:8545",
   registryAddress: process.env.REGISTRY_ADDRESS || "",
   treeBuilderPrivateKey: process.env.TREE_BUILDER_KEY || "",
-  treeDepth: parseInt(process.env.TREE_DEPTH || "20", 10),
+  treeDepth: parseInt(process.env.TREE_DEPTH || "21", 10),
   port: parseInt(process.env.PORT || "3001", 10),
   demoMode: process.env.DEMO_MODE === "true" || (!process.env.POLKADOT_RPC && !process.env.REGISTRY_ADDRESS),
   demoAccountCount: parseInt(process.env.DEMO_ACCOUNT_COUNT || "15", 10),
   useArchiveNode: process.env.USE_ARCHIVE_NODE !== "false",
+  s3Bucket: process.env.S3_BUCKET || "",
+  s3Region: process.env.S3_REGION || "us-east-1",
+  s3AccessKeyId: process.env.S3_ACCESS_KEY_ID || "",
+  s3SecretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "",
+  s3Endpoint: process.env.S3_ENDPOINT || "",
   tiers: [
     {
       id: 0,

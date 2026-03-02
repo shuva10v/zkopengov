@@ -21,9 +21,10 @@ import { PoseidonMerkleTree } from "./trees/PoseidonMerkleTree";
 import { buildOwnershipTree, Registration } from "./trees/ownership-tree";
 import { buildBalancesTree } from "./trees/balances-tree";
 import { generateMockBalances } from "./chain/balance-fetcher";
-import { hasCachedBalances, loadCachedBalances, saveCachedBalances } from "./cache";
+import { hasCachedBalances, loadCachedBalances, saveCachedBalances, listCachedBlocks } from "./cache";
 import { generateMockRegistrations, RegistrationEvent, fetchRegistrations, listenForRegistrations } from "./chain/event-listener";
 import { submitOwnershipRoot, submitBalancesRoot } from "./submitter/root-submitter";
+import { uploadBalancesTree as uploadBalancesTreeToS3 } from "./submitter/s3-uploader";
 import {
   IndexerState,
   OwnershipLeafData,
@@ -193,6 +194,20 @@ async function submitRoots(): Promise<void> {
 }
 
 /**
+ * Post-rebuild actions: submit roots on-chain and upload tree data to S3.
+ */
+async function postBalancesTreeActions(
+  blockNumber: number,
+  treeData: object
+): Promise<void> {
+  await submitRoots();
+
+  if (config.s3Bucket) {
+    await uploadBalancesTreeToS3(blockNumber, treeData);
+  }
+}
+
+/**
  * Run the indexer in demo mode with mock data.
  */
 async function runDemoMode(): Promise<void> {
@@ -225,11 +240,15 @@ async function runLiveMode(): Promise<void> {
     currentRegistrations = registrations;
     await rebuildOwnershipTree(registrations);
 
-    // Set up real-time event listener for incremental updates
+    // Poll for new registrations (pallet-revive doesn't support eth_newFilter)
+    const lastIndex = registrations.length > 0
+      ? registrations[registrations.length - 1].index
+      : -1;
     listenForRegistrations(
       provider,
       config.registryAddress,
-      handleNewRegistration
+      handleNewRegistration,
+      lastIndex
     );
   } else {
     console.warn("[indexer] No registry address configured, using empty ownership tree");
@@ -255,24 +274,46 @@ async function runLiveMode(): Promise<void> {
       ({ hash, number: blockNumber } = await getLatestFinalizedBlock());
     }
 
-    // Check cache first
+    // Check cache: exact block match, or fall back to most recent cached snapshot
     if (hasCachedBalances(blockNumber)) {
       console.log(`[indexer] Found cached balances for block ${blockNumber}`);
       const balances = loadCachedBalances(blockNumber)!;
       await rebuildBalancesTree(balances, blockNumber);
     } else {
-      console.log(`[indexer] No cache for block ${blockNumber}, fetching from chain...`);
-      const balances = await fetchAllBalances(api, hash);
-      saveCachedBalances(blockNumber, hash, balances);
-      await rebuildBalancesTree(balances, blockNumber);
+      const cachedBlocks = listCachedBlocks();
+      if (cachedBlocks.length > 0) {
+        const latest = cachedBlocks[0]; // sorted descending
+        const blocksStale = blockNumber - latest;
+        console.log(
+          `[indexer] No cache for block ${blockNumber}, using most recent cache (block ${latest}, ${blocksStale} blocks behind)`
+        );
+        const staleBalances = loadCachedBalances(latest)!;
+        await rebuildBalancesTree(staleBalances, latest);
+
+        // Only background-refresh if cache is more than ~6 hours old (~3600 blocks at 6s)
+        if (blocksStale > 3600) {
+          console.log(`[indexer] Cache is stale (${blocksStale} blocks), refreshing in background...`);
+          fetchAllBalances(config.polkadotRpc, hash).then(async (balances) => {
+            saveCachedBalances(blockNumber, hash, balances);
+            await rebuildBalancesTree(balances, blockNumber);
+            await postBalancesTreeActions(blockNumber, state.balancesTreeData!);
+            console.log(`[indexer] Swapped to fresh balances from block ${blockNumber}`);
+          }).catch((err) => {
+            console.error("[indexer] Background balance fetch failed:", err);
+          });
+        } else {
+          console.log(`[indexer] Cache is recent enough, skipping background refresh (next refresh at midnight UTC)`);
+        }
+      } else {
+        console.log(`[indexer] No cache found, fetching from chain...`);
+        const balances = await fetchAllBalances(config.polkadotRpc, hash);
+        saveCachedBalances(blockNumber, hash, balances);
+        await rebuildBalancesTree(balances, blockNumber);
+      }
     }
   } catch (err) {
-    console.warn(
-      "[indexer] Could not connect to Polkadot chain, using mock balances:",
-      err
-    );
-    const mockBalances = generateMockBalances();
-    await rebuildBalancesTree(mockBalances, 0);
+    console.error("[indexer] Failed to fetch balances from chain:", err);
+    throw err; // crash so Docker restarts the container
   }
 
   // Schedule daily balances rebuild at midnight UTC
@@ -299,18 +340,18 @@ async function runLiveMode(): Promise<void> {
         const balances = loadCachedBalances(blockNumber)!;
         await rebuildBalancesTree(balances, blockNumber);
       } else {
-        const balances = await fetchAllBalances(api, hash);
+        const balances = await fetchAllBalances(config.polkadotRpc, hash);
         saveCachedBalances(blockNumber, hash, balances);
         await rebuildBalancesTree(balances, blockNumber);
       }
-      await submitRoots();
+      await postBalancesTreeActions(blockNumber, state.balancesTreeData!);
     } catch (err) {
       console.error("[indexer] Scheduled rebuild failed:", err);
     }
   });
 
-  // Submit roots after initial build
-  await submitRoots();
+  // Submit roots and upload tree data after initial build
+  await postBalancesTreeActions(state.snapshotBlock, state.balancesTreeData!);
 }
 
 /**

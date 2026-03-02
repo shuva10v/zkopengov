@@ -108,9 +108,9 @@ cd e2e && npm test
 
 | Contract | Address |
 |----------|---------|
-| Groth16Verifier | `0x795CF750c9BcE31B0F8D2EBc9d5E11B88fC4dA2c` |
-| VotingRegistry | `0x59f8534e213Ef2CE2B1D0eF249079B56D1194b03` |
-| VotingBooth | `0x56F1Ac3002f9CE44260009FE8b0f3dC6081fcF2a` |
+| Groth16Verifier | `0xbC2b672Fd34fE4Dce6030E3F4e7D5c954956143C` |
+| VotingRegistry | `0xc7975897681dAcD692cC163f1961452248c5cf74` |
+| VotingBooth | `0x29bdC61A2E2D48F412f53Ffe6102A5bd12CF66AF` |
 
 - **Network:** Polkadot Hub Testnet (chain ID 420420417)
 - **RPC:** `https://services.polkadothub-rpc.com/testnet`

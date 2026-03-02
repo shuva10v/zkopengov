@@ -33,6 +33,10 @@ contract VotingRegistry is IVotingRegistry {
     mapping(bytes32 => uint256) public balancesRootBlock;
     bytes32 public latestBalancesRoot;
 
+    // Reverse lookup: block => root (for finding the right snapshot for a proposal)
+    mapping(uint256 => bytes32) public blockToBalancesRoot;
+    uint256[] public submittedBlocks;
+
     address public owner;
     address public treeBuilder; // off-chain indexer service address
 
@@ -109,9 +113,12 @@ contract VotingRegistry is IVotingRegistry {
     function submitBalancesRoot(bytes32 root, uint256 snapshotBlock) external onlyTreeBuilder {
         require(root != bytes32(0), "Invalid root");
         require(snapshotBlock > 0, "Invalid block");
+        require(blockToBalancesRoot[snapshotBlock] == bytes32(0), "Block already has root");
 
         balancesRootBlock[root] = snapshotBlock;
         latestBalancesRoot = root;
+        blockToBalancesRoot[snapshotBlock] = root;
+        submittedBlocks.push(snapshotBlock);
         emit BalancesRootUpdated(root, snapshotBlock);
     }
 
@@ -144,5 +151,31 @@ contract VotingRegistry is IVotingRegistry {
 
     function isKnownBalancesRoot(bytes32 root) external view override returns (bool) {
         return balancesRootBlock[root] > 0;
+    }
+
+    function getBalancesRootForBlock(uint256 blockNumber) external view returns (bytes32) {
+        return blockToBalancesRoot[blockNumber];
+    }
+
+    function getSubmittedBlockCount() external view returns (uint256) {
+        return submittedBlocks.length;
+    }
+
+    /// @notice Find the balances root for the latest snapshot taken at or before `proposalBlock`.
+    /// @dev    Linear scan over submittedBlocks (unordered, ~365 entries/year — cheap for view).
+    function findBalancesRootForProposal(uint256 proposalBlock) external view returns (bytes32 root, uint256 snapshotBlock) {
+        uint256 bestBlock = 0;
+        uint256 len = submittedBlocks.length;
+
+        for (uint256 i = 0; i < len; i++) {
+            uint256 b = submittedBlocks[i];
+            if (b <= proposalBlock && b > bestBlock) {
+                bestBlock = b;
+            }
+        }
+
+        require(bestBlock > 0, "No snapshot before proposal block");
+        root = blockToBalancesRoot[bestBlock];
+        snapshotBlock = bestBlock;
     }
 }

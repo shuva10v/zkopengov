@@ -10,6 +10,7 @@
     "test": "jest --forceExit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.500.0",
     "@polkadot/api": "^12.0.0",
     "circomlibjs": "^0.1.7",
     "ethers": "^6.9.0",
