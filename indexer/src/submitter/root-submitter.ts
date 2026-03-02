@@ -9,11 +9,16 @@ import { ethers } from "ethers";
 
 /** ABI fragments for root submission functions */
 const REGISTRY_ABI = [
-  "function submitOwnershipRoot(uint256 root, uint256 registrationCount) external",
-  "function submitBalancesRoot(uint256 root, uint256 snapshotBlock) external",
-  "function ownershipRoot() external view returns (uint256)",
-  "function balancesRoot() external view returns (uint256)",
+  "function submitOwnershipRoot(bytes32 root, uint256 registrationCount) external",
+  "function submitBalancesRoot(bytes32 root, uint256 snapshotBlock) external",
+  "function latestOwnershipRoot() external view returns (bytes32)",
+  "function latestBalancesRoot() external view returns (bytes32)",
 ];
+
+/** Convert a bigint to a bytes32 hex string */
+function bigintToBytes32(value: bigint): string {
+  return "0x" + value.toString(16).padStart(64, "0");
+}
 
 /**
  * Submit the ownership tree root to the VotingRegistry contract.
@@ -36,7 +41,7 @@ export async function submitOwnershipRoot(
 
   const contract = new ethers.Contract(registryAddress, REGISTRY_ABI, signer);
 
-  const tx = await contract.submitOwnershipRoot(root, regCount);
+  const tx = await contract.submitOwnershipRoot(bigintToBytes32(root), regCount);
   console.log(`[root-submitter] TX hash: ${tx.hash}`);
 
   const receipt = await tx.wait();
@@ -68,7 +73,7 @@ export async function submitBalancesRoot(
 
   const contract = new ethers.Contract(registryAddress, REGISTRY_ABI, signer);
 
-  const tx = await contract.submitBalancesRoot(root, snapshotBlock);
+  const tx = await contract.submitBalancesRoot(bigintToBytes32(root), snapshotBlock);
   console.log(`[root-submitter] TX hash: ${tx.hash}`);
 
   const receipt = await tx.wait();
@@ -87,8 +92,8 @@ export async function readOwnershipRoot(
   registryAddress: string
 ): Promise<bigint> {
   const contract = new ethers.Contract(registryAddress, REGISTRY_ABI, provider);
-  const root = await contract.ownershipRoot();
-  return BigInt(root.toString());
+  const root = await contract.latestOwnershipRoot();
+  return BigInt(root);
 }
 
 /**
@@ -99,6 +104,6 @@ export async function readBalancesRoot(
   registryAddress: string
 ): Promise<bigint> {
   const contract = new ethers.Contract(registryAddress, REGISTRY_ABI, provider);
-  const root = await contract.balancesRoot();
-  return BigInt(root.toString());
+  const root = await contract.latestBalancesRoot();
+  return BigInt(root);
 }
