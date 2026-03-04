@@ -31,15 +31,30 @@ export interface Proposal {
 }
 
 /**
+ * BN254 scalar field prime.
+ * Circom field elements are reduced modulo this prime, so any proposalId
+ * that exceeds it would be silently reduced inside the circuit.  We reduce
+ * the keccak hash up-front so the on-chain bytes32 and the circuit value match.
+ */
+const BN254_FIELD_PRIME = BigInt(
+    '21888242871839275222246405745257275088548364400416034343698204186575808495617',
+);
+
+/**
  * Compute a deterministic proposalId from a referendum index.
- * Uses keccak256(abi.encodePacked("polkadot-opengov", uint256(referendumIndex))).
+ *
+ * 1. keccak256(abi.encodePacked("polkadot-opengov", uint256(referendumIndex)))
+ * 2. Reduce modulo the BN254 scalar-field prime so the value is always
+ *    representable as a Circom signal without silent truncation.
  */
 export function computeProposalId(referendumIndex: number): string {
     const encoded = ethers.solidityPacked(
         ['string', 'uint256'],
         ['polkadot-opengov', referendumIndex]
     );
-    return ethers.keccak256(encoded);
+    const hash = ethers.keccak256(encoded);
+    const reduced = BigInt(hash) % BN254_FIELD_PRIME;
+    return '0x' + reduced.toString(16).padStart(64, '0');
 }
 
 const SUBSCAN_API = 'https://assethub-polkadot.api.subscan.io';
@@ -149,8 +164,19 @@ export async function fetchProposals(): Promise<Proposal[]> {
     return inflightProposals;
 }
 
+async function fetchWithRetry(url: string, init: RequestInit, maxRetries = 5): Promise<Response> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const resp = await fetch(url, init);
+        if (resp.status !== 429) return resp;
+        const delay = attempt * 1000;
+        console.warn(`[proposals] 429 from ${url}, retrying in ${delay / 1000}s (${attempt}/${maxRetries})...`);
+        await new Promise((r) => setTimeout(r, delay));
+    }
+    throw new Error(`Rate limited after ${maxRetries} retries`);
+}
+
 async function doFetchProposals(): Promise<Proposal[]> {
-    const response = await fetch(
+    const response = await fetchWithRetry(
         `${SUBSCAN_API}/api/scan/referenda/referendums`,
         {
             method: 'POST',

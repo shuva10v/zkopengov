@@ -149,16 +149,23 @@ export async function preCheckOnChain(
         console.warn("Warning: isKnownOwnershipRoot check failed:", (err as Error).message);
     }
 
-    // Check if balances root is known
+    // Check if the balances root matches the expected root for this proposal
     try {
-        const knownBalances: boolean = await registry.isKnownBalancesRoot(
-            request.balancesRoot
+        const propBlock: bigint = await registry.getProposalBlock(
+            request.proposalId
         );
-        if (!knownBalances) {
-            return "Unknown balances root";
+        if (propBlock === 0n) {
+            return "Proposal not registered";
+        }
+
+        const [expectedRoot]: [string, bigint] = await registry.findBalancesRootForProposal(
+            propBlock
+        );
+        if (request.balancesRoot !== expectedRoot) {
+            return "Wrong balances root for proposal";
         }
     } catch (err) {
-        console.warn("Warning: isKnownBalancesRoot check failed:", (err as Error).message);
+        console.warn("Warning: proposal/balancesRoot check failed:", (err as Error).message);
     }
 
     return null;

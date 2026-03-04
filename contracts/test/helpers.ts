@@ -358,6 +358,9 @@ export async function deployFullSetup() {
  * Set up a full voting scenario with real Merkle trees and ZK proofs.
  * Creates test voters, builds ownership and balances trees, submits roots to registry.
  */
+/** Default snapshot block used in test fixtures */
+export const TEST_SNAPSHOT_BLOCK = 1000;
+
 export async function setupRealVotingState(
   registry: Contract,
   treeBuilder: any,

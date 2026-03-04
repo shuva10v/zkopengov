@@ -15,10 +15,13 @@ const REGISTRY_ABI = [
     'function isRegistered(address) view returns (bool)',
     'function getRegistrationCount() view returns (uint256)',
     'function getRegistration(uint256 index) view returns (address account, bytes32 commitment)',
+    'function getProposalBlock(bytes32 proposalId) view returns (uint256)',
     'function findBalancesRootForProposal(uint256 proposalBlock) view returns (bytes32 root, uint256 snapshotBlock)',
     'function latestBalancesRoot() view returns (bytes32)',
     'function latestOwnershipRoot() view returns (bytes32)',
     'function latestOwnershipRegCount() view returns (uint256)',
+    'function getSubmittedBlockCount() view returns (uint256)',
+    'function submittedBlocks(uint256) view returns (uint256)',
     'event Registered(uint256 indexed index, address indexed account, bytes32 commitment)',
 ];
 
@@ -82,6 +85,18 @@ export async function findBalancesRootForProposal(
     const registry = getRegistryContract();
     const [root, snapshotBlock] = await registry.findBalancesRootForProposal(proposalBlock);
     return { root, snapshotBlock: Number(snapshotBlock) };
+}
+
+/**
+ * Check whether a proposal has been registered on-chain for private voting.
+ * Returns true if the proposal's createdAtBlock is recorded in the registry.
+ */
+export async function isProposalRegistered(
+    proposalId: string
+): Promise<boolean> {
+    const registry = getRegistryContract();
+    const block: bigint = await registry.getProposalBlock(proposalId);
+    return block > 0n;
 }
 
 /**

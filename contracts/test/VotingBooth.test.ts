@@ -13,6 +13,7 @@ import {
   VOTE_AYE,
   VOTE_NAY,
   VOTE_ABSTAIN,
+  TEST_SNAPSHOT_BLOCK,
 } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -94,6 +95,10 @@ describe("VotingBooth", function () {
       ]);
 
     const proposalId = BigInt(randomFieldElement());
+    const proposalIdHex = bigintToBytes32(proposalId);
+
+    // Register proposal so VotingBooth accepts this proposalId
+    await registry.connect(treeBuilder).registerProposal(proposalIdHex, TEST_SNAPSHOT_BLOCK);
 
     const proof = await generateVoteProof({
       voter: voters[0],
@@ -108,7 +113,6 @@ describe("VotingBooth", function () {
       tierMax: TIER_DEFS[0].maxBalance,
     });
 
-    const proposalIdHex = bigintToBytes32(proposalId);
     const nullifierHex = bigintToBytes32(proof.pubSignals[5]);
 
     await booth
@@ -141,6 +145,9 @@ describe("VotingBooth", function () {
       ]);
 
     const proposalId = BigInt(randomFieldElement());
+    const proposalIdHex = bigintToBytes32(proposalId);
+    await registry.connect(treeBuilder).registerProposal(proposalIdHex, TEST_SNAPSHOT_BLOCK);
+
     const proof = await generateVoteProof({
       voter: voters[0],
       ownershipTree,
@@ -154,7 +161,6 @@ describe("VotingBooth", function () {
       tierMax: TIER_DEFS[0].maxBalance,
     });
 
-    const proposalIdHex = bigintToBytes32(proposalId);
     const nullifierHex = bigintToBytes32(proof.pubSignals[5]);
 
     await expect(
@@ -190,6 +196,9 @@ describe("VotingBooth", function () {
       ]);
 
     const proposalId = BigInt(randomFieldElement());
+    const proposalIdHex = bigintToBytes32(proposalId);
+    await registry.connect(treeBuilder).registerProposal(proposalIdHex, TEST_SNAPSHOT_BLOCK);
+
     const proof = await generateVoteProof({
       voter: voters[0],
       ownershipTree,
@@ -203,7 +212,6 @@ describe("VotingBooth", function () {
       tierMax: TIER_DEFS[0].maxBalance,
     });
 
-    const proposalIdHex = bigintToBytes32(proposalId);
     const nullifierHex = bigintToBytes32(proof.pubSignals[5]);
 
     // First vote succeeds
@@ -250,6 +258,8 @@ describe("VotingBooth", function () {
 
     const fakeOwnershipRoot = randomBytes32();
     const balancesRoot = await registry.latestBalancesRoot();
+    const proposalId = randomBytes32();
+    await registry.connect(treeBuilder).registerProposal(proposalId, TEST_SNAPSHOT_BLOCK);
 
     await expect(
       booth
@@ -260,7 +270,7 @@ describe("VotingBooth", function () {
           [0n, 0n],
           fakeOwnershipRoot,
           balancesRoot,
-          randomBytes32(),
+          proposalId,
           VOTE_AYE,
           0,
           randomBytes32()
@@ -268,7 +278,7 @@ describe("VotingBooth", function () {
     ).to.be.revertedWith("Unknown ownership root");
   });
 
-  it("Should reject unknown balances root", async function () {
+  it("Should reject wrong balances root for proposal", async function () {
     const { booth, registry, treeBuilder, voter1 } = await loadFixture(
       deployFullSetup
     );
@@ -279,6 +289,8 @@ describe("VotingBooth", function () {
 
     const ownershipRoot = await registry.latestOwnershipRoot();
     const fakeBalancesRoot = randomBytes32();
+    const proposalId = randomBytes32();
+    await registry.connect(treeBuilder).registerProposal(proposalId, TEST_SNAPSHOT_BLOCK);
 
     await expect(
       booth
@@ -289,12 +301,12 @@ describe("VotingBooth", function () {
           [0n, 0n],
           ownershipRoot,
           fakeBalancesRoot,
-          randomBytes32(),
+          proposalId,
           VOTE_AYE,
           0,
           randomBytes32()
         )
-    ).to.be.revertedWith("Unknown balances root");
+    ).to.be.revertedWith("Wrong balances root for proposal");
   });
 
   it("Should reject invalid tier", async function () {
@@ -308,6 +320,8 @@ describe("VotingBooth", function () {
       ]);
 
     const invalidTier = TIER_DEFS.length; // out of bounds
+    const proposalId = randomBytes32();
+    await registry.connect(treeBuilder).registerProposal(proposalId, TEST_SNAPSHOT_BLOCK);
 
     await expect(
       booth
@@ -318,7 +332,7 @@ describe("VotingBooth", function () {
           [0n, 0n],
           ownershipRootHex,
           balancesRootHex,
-          randomBytes32(),
+          proposalId,
           VOTE_AYE,
           invalidTier,
           randomBytes32()
@@ -336,6 +350,9 @@ describe("VotingBooth", function () {
         { addressSeed: 60, balance: 50n * PLANCKS_PER_DOT },
       ]);
 
+    const proposalId = randomBytes32();
+    await registry.connect(treeBuilder).registerProposal(proposalId, TEST_SNAPSHOT_BLOCK);
+
     await expect(
       booth
         .connect(voter1)
@@ -345,7 +362,7 @@ describe("VotingBooth", function () {
           [0n, 0n],
           ownershipRootHex,
           balancesRootHex,
-          randomBytes32(),
+          proposalId,
           3, // invalid
           0,
           randomBytes32()
@@ -371,6 +388,7 @@ describe("VotingBooth", function () {
 
     const proposalId = BigInt(randomFieldElement());
     const proposalIdHex = bigintToBytes32(proposalId);
+    await registry.connect(treeBuilder).registerProposal(proposalIdHex, TEST_SNAPSHOT_BLOCK);
 
     // voter0 votes AYE in tier 0 (weight 1)
     const proof0 = await generateVoteProof({
@@ -462,6 +480,7 @@ describe("VotingBooth", function () {
 
     const proposalId = BigInt(randomFieldElement());
     const proposalIdHex = bigintToBytes32(proposalId);
+    await registry.connect(treeBuilder).registerProposal(proposalIdHex, TEST_SNAPSHOT_BLOCK);
 
     // voter0 votes AYE
     const proof0 = await generateVoteProof({
@@ -526,6 +545,8 @@ describe("VotingBooth", function () {
     const proposalB = BigInt(randomFieldElement());
     const proposalAHex = bigintToBytes32(proposalA);
     const proposalBHex = bigintToBytes32(proposalB);
+    await registry.connect(treeBuilder).registerProposal(proposalAHex, TEST_SNAPSHOT_BLOCK);
+    await registry.connect(treeBuilder).registerProposal(proposalBHex, TEST_SNAPSHOT_BLOCK);
 
     // Vote on proposal A
     const proofA = await generateVoteProof({
@@ -577,5 +598,72 @@ describe("VotingBooth", function () {
 
     const [, nayB] = await booth.getResults(proposalBHex);
     expect(nayB).to.equal(TIER_DEFS[0].weight); // 1
+  });
+
+  // ---- Proposal registration enforcement ----
+
+  it("Should reject vote for unregistered proposal", async function () {
+    const { booth, registry, treeBuilder, voter1 } = await loadFixture(
+      deployFullSetup
+    );
+
+    const { ownershipRootHex, balancesRootHex } =
+      await setupRealVotingState(registry, treeBuilder, [
+        { addressSeed: 400, balance: 50n * PLANCKS_PER_DOT },
+      ]);
+
+    const unregisteredProposal = randomBytes32();
+
+    await expect(
+      booth
+        .connect(voter1)
+        .vote(
+          [0n, 0n],
+          [[0n, 0n], [0n, 0n]],
+          [0n, 0n],
+          ownershipRootHex,
+          balancesRootHex,
+          unregisteredProposal,
+          VOTE_AYE,
+          0,
+          randomBytes32()
+        )
+    ).to.be.revertedWith("Proposal not registered");
+  });
+
+  it("Should reject balancesRoot that is newer than the proposal", async function () {
+    const { booth, registry, treeBuilder, voter1 } = await loadFixture(
+      deployFullSetup
+    );
+
+    const { ownershipRootHex } =
+      await setupRealVotingState(registry, treeBuilder, [
+        { addressSeed: 500, balance: 50n * PLANCKS_PER_DOT },
+      ]);
+
+    // Submit a second balancesRoot at a later block
+    const laterRoot = randomBytes32();
+    await registry.connect(treeBuilder).submitBalancesRoot(laterRoot, 2000);
+
+    // Register proposal at block 500 (before snapshot block 1000)
+    // The closest snapshot <= 500 doesn't exist, so this should revert
+    const proposalId = randomBytes32();
+    await registry.connect(treeBuilder).registerProposal(proposalId, 500);
+
+    await expect(
+      booth
+        .connect(voter1)
+        .vote(
+          [0n, 0n],
+          [[0n, 0n], [0n, 0n]],
+          [0n, 0n],
+          ownershipRootHex,
+          laterRoot,
+          proposalId,
+          VOTE_AYE,
+          0,
+          randomBytes32()
+        )
+    ).to.be.revertedWith("No snapshot before proposal block");
   });
 });

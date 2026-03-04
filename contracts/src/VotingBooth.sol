@@ -122,23 +122,25 @@ contract VotingBooth {
         // 1. Check nullifier hasn't been used for this proposal
         require(!nullifierUsed[proposalId][nullifier], "Already voted");
 
-        // 2. Verify roots are known to the registry
+        // 2. Verify ownership root is known
         require(
             registry.isKnownOwnershipRoot(ownershipRoot),
             "Unknown ownership root"
         );
-        require(
-            registry.isKnownBalancesRoot(balancesRoot),
-            "Unknown balances root"
-        );
 
-        // 3. Validate tier
+        // 3. Enforce the correct balances root for this proposal
+        uint256 propBlock = registry.getProposalBlock(proposalId);
+        require(propBlock > 0, "Proposal not registered");
+        (bytes32 expectedRoot, ) = registry.findBalancesRootForProposal(propBlock);
+        require(balancesRoot == expectedRoot, "Wrong balances root for proposal");
+
+        // 4. Validate tier
         require(tier < tiers.length, "Invalid tier");
 
-        // 4. Validate vote choice (0=nay, 1=aye, 2=abstain)
+        // 5. Validate vote choice (0=nay, 1=aye, 2=abstain)
         require(voteChoice <= 2, "Invalid vote choice");
 
-        // 5. Construct public inputs and verify ZK proof
+        // 6. Construct public inputs and verify ZK proof
         uint256[7] memory pubInputs = [
             uint256(ownershipRoot),
             uint256(balancesRoot),
@@ -153,7 +155,7 @@ contract VotingBooth {
             "Invalid proof"
         );
 
-        // 6. Record vote
+        // 7. Record vote
         nullifierUsed[proposalId][nullifier] = true;
         tally[proposalId][tier][voteChoice] += tiers[tier].weight;
         totalVotes[proposalId]++;

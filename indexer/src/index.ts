@@ -23,7 +23,7 @@ import { buildBalancesTree } from "./trees/balances-tree";
 import { generateMockBalances } from "./chain/balance-fetcher";
 import { hasCachedBalances, loadCachedBalances, saveCachedBalances, listCachedBlocks } from "./cache";
 import { generateMockRegistrations, RegistrationEvent, fetchRegistrations, listenForRegistrations } from "./chain/event-listener";
-import { submitOwnershipRoot, submitBalancesRoot } from "./submitter/root-submitter";
+import { submitOwnershipRoot, submitBalancesRoot, registerProposal } from "./submitter/root-submitter";
 import { uploadBalancesTree as uploadBalancesTreeToS3, uploadOwnershipTree as uploadOwnershipTreeToS3 } from "./submitter/s3-uploader";
 import {
   IndexerState,
@@ -244,6 +244,93 @@ async function postBalancesTreeActions(
 }
 
 /**
+ * Sync proposals from Subscan and register them on-chain.
+ * Fetches the latest 50 referenda, computes proposalId for each,
+ * and registers any that are not yet on-chain.
+ */
+async function syncProposals(): Promise<void> {
+  if (
+    config.demoMode ||
+    !config.registryAddress ||
+    !config.treeBuilderPrivateKey
+  ) {
+    console.log("[indexer] Skipping proposal sync (demo mode or missing config)");
+    return;
+  }
+
+  console.log("[indexer] Syncing proposals from Subscan...");
+
+  try {
+    // Use Asset Hub Subscan — block numbers match our balances snapshots
+    const maxRetries = 5;
+    let resp: Response | null = null;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      resp = await fetch("https://assethub-polkadot.api.subscan.io/api/scan/referenda/referendums", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ row: 50, page: 0, order: "desc" }),
+      });
+
+      if (resp.status !== 429) break;
+
+      const delay = attempt * 2000;
+      console.warn(`[indexer] Subscan returned 429, retrying in ${delay / 1000}s (attempt ${attempt}/${maxRetries})...`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+
+    if (!resp || !resp.ok) {
+      console.warn(`[indexer] Subscan API returned ${resp?.status ?? 'no response'}, skipping proposal sync`);
+      return;
+    }
+
+    const data = (await resp.json()) as { data?: { list?: Array<{ referendum_index: number; created_block: number }> } };
+    const referenda = data?.data?.list;
+    if (!Array.isArray(referenda) || referenda.length === 0) {
+      console.log("[indexer] No referenda found from Subscan");
+      return;
+    }
+
+    const provider = new ethers.JsonRpcProvider(config.evmRpc);
+    const signer = new ethers.Wallet(config.treeBuilderPrivateKey, provider);
+
+    let registered = 0;
+    for (const ref of referenda) {
+      const referendumIndex = ref.referendum_index;
+      const createdAtBlock = ref.created_block;
+
+      if (typeof referendumIndex !== "number" || typeof createdAtBlock !== "number" || createdAtBlock === 0) {
+        continue;
+      }
+
+      // Skip proposals before our earliest available balances snapshot
+      if (config.minProposalBlock > 0 && createdAtBlock < config.minProposalBlock) {
+        continue;
+      }
+
+      // proposalId = keccak256(...) % BN254_FIELD_PRIME
+      // Reduced modulo the BN254 scalar field so on-chain bytes32 matches the circuit signal.
+      const rawHash = ethers.solidityPackedKeccak256(
+        ["string", "uint256"],
+        ["polkadot-opengov", referendumIndex]
+      );
+      const BN254_FIELD_PRIME = BigInt("21888242871839275222246405745257275088548364400416034343698204186575808495617");
+      const proposalId = "0x" + (BigInt(rawHash) % BN254_FIELD_PRIME).toString(16).padStart(64, "0");
+
+      try {
+        const receipt = await registerProposal(signer, config.registryAddress, proposalId, createdAtBlock);
+        if (receipt) registered++;
+      } catch (err) {
+        console.warn(`[indexer] Failed to register proposal #${referendumIndex}:`, (err as Error).message);
+      }
+    }
+
+    console.log(`[indexer] Proposal sync complete: ${registered} newly registered out of ${referenda.length}`);
+  } catch (err) {
+    console.error("[indexer] Proposal sync failed:", err);
+  }
+}
+
+/**
  * Run the indexer in demo mode with mock data.
  */
 async function runDemoMode(): Promise<void> {
@@ -388,6 +475,15 @@ async function runLiveMode(): Promise<void> {
 
   // Submit roots and upload tree data after initial build
   await postBalancesTreeActions(state.snapshotBlock, state.balancesTreeData!);
+
+  // Sync proposals from Subscan after initial tree build
+  await syncProposals();
+
+  // Schedule proposal sync every 30 minutes
+  cron.schedule("*/30 * * * *", async () => {
+    console.log("[indexer] Scheduled proposal sync...");
+    await syncProposals();
+  });
 }
 
 /**

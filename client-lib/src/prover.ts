@@ -133,14 +133,17 @@ export async function generateVoteProof(
     // IMPORTANT: pi_b coordinates are SWAPPED for the Solidity verifier.
     // snarkjs outputs pi_b[i][j] but the Solidity BN254 pairing precompile
     // expects the coordinates in reverse order within each G2 point component.
+    //
+    // Convert decimal strings from snarkjs to 0x-prefixed hex for the relayer/contract.
+    const toHex = (v: string) => '0x' + BigInt(v).toString(16).padStart(64, '0');
     return {
         proof: {
-            pA: [proof.pi_a[0], proof.pi_a[1]],
+            pA: [toHex(proof.pi_a[0]), toHex(proof.pi_a[1])],
             pB: [
-                [proof.pi_b[0][1], proof.pi_b[0][0]],
-                [proof.pi_b[1][1], proof.pi_b[1][0]],
+                [toHex(proof.pi_b[0][1]), toHex(proof.pi_b[0][0])],
+                [toHex(proof.pi_b[1][1]), toHex(proof.pi_b[1][0])],
             ],
-            pC: [proof.pi_c[0], proof.pi_c[1]],
+            pC: [toHex(proof.pi_c[0]), toHex(proof.pi_c[1])],
         },
         publicInputs: {
             ownershipRoot: '0x' + BigInt(publicSignals[0]).toString(16).padStart(64, '0'),

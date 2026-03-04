@@ -3,6 +3,7 @@ import { useRegistration } from '../hooks/useRegistration';
 import { loadSecret, clearSecret, saveSecret } from '../lib/secret-storage';
 import { generateCommitment } from 'zk-opengov-client-lib';
 import { getRegistryContract } from '../lib/contracts';
+import { config, CHAIN_CONFIGS } from '../lib/config';
 
 interface RegisterProps {
     account: string | null;
@@ -370,7 +371,18 @@ export default function Register({ account, isConnected, onConnect }: RegisterPr
                                 <p>Your commitment has been recorded on-chain.</p>
                                 <div className="tx-hash-display">
                                     <span className="tx-label">Transaction:</span>
-                                    <code className="tx-hash">{registration.txHash}</code>
+                                    {(() => {
+                                        const explorer = CHAIN_CONFIGS[config.chainId]?.blockExplorerUrls?.[0];
+                                        if (explorer) {
+                                            const url = `${explorer.replace(/\/$/, '')}/tx/${registration.txHash}`;
+                                            return (
+                                                <a href={url} target="_blank" rel="noopener noreferrer" className="tx-hash tx-link">
+                                                    {registration.txHash}
+                                                </a>
+                                            );
+                                        }
+                                        return <code className="tx-hash">{registration.txHash}</code>;
+                                    })()}
                                 </div>
                                 {registration.registrationIndex >= 0 && (
                                     <p className="tx-detail">

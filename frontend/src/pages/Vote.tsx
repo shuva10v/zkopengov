@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useProposals } from '../hooks/useProposals';
 import { hasSecret } from '../lib/secret-storage';
 import { useVoting } from '../hooks/useVoting';
+import { isProposalRegistered } from '../lib/contracts';
 import VoteForm from '../components/VoteForm';
 import TierBadge from '../components/TierBadge';
 import ProofStatus from '../components/ProofStatus';
@@ -27,6 +29,13 @@ export default function Vote({ account, isConnected }: VotePageProps) {
         hasVoted,
         tier,
     } = useVoting(id || '', account, proposal?.createdAtBlock);
+
+    const [proposalRegistered, setProposalRegistered] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        if (!id) return;
+        isProposalRegistered(id).then(setProposalRegistered).catch(() => setProposalRegistered(null));
+    }, [id]);
 
     if (isLoading) {
         return (
@@ -127,11 +136,22 @@ export default function Vote({ account, isConnected }: VotePageProps) {
                         </div>
                     )}
 
-                    {isConnected && userHasSecret && (
+                    {isConnected && userHasSecret && proposalRegistered === false && (
+                        <div className="vote-prereq">
+                            <div className="prereq-icon">&#9888;</div>
+                            <h3>Not Available for Private Voting</h3>
+                            <p>
+                                This proposal is not yet registered for private voting.
+                                The indexer will register it automatically — please check back later.
+                            </p>
+                        </div>
+                    )}
+
+                    {isConnected && userHasSecret && proposalRegistered !== false && (
                         <>
                             <VoteForm
                                 onVote={vote}
-                                isDisabled={isProcessing}
+                                isDisabled={isProcessing || proposalRegistered === null}
                                 hasVoted={hasVoted}
                             />
 

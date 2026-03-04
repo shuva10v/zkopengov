@@ -7,6 +7,7 @@ import Proposals from './pages/Proposals';
 import Register from './pages/Register';
 import Vote from './pages/Vote';
 import Results from './pages/Results';
+import Stats from './pages/Stats';
 
 export default function App() {
     const wallet = usePolkadotWallet();
@@ -46,6 +47,7 @@ export default function App() {
                         }
                     />
                     <Route path="/results/:id" element={<Results />} />
+                    <Route path="/stats" element={<Stats />} />
                 </Routes>
             </Layout>
         </BrowserRouter>

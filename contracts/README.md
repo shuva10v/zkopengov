@@ -56,12 +56,12 @@ npm run deploy:testnet
 
 | Contract | Address |
 |----------|---------|
-| Groth16Verifier | `0xbC2b672Fd34fE4Dce6030E3F4e7D5c954956143C` |
-| VotingRegistry | `0xc7975897681dAcD692cC163f1961452248c5cf74` |
-| VotingBooth | `0x29bdC61A2E2D48F412f53Ffe6102A5bd12CF66AF` |
+| Groth16Verifier | `0x1E8139d14c7dE8703dEfB9eAb6aDAdC7B572b8a9` |
+| VotingRegistry | `0xC5a08D782CA60Bc69BddE400332bA595543bDc5E` |
+| VotingBooth | `0xec99cd6cb7B9469B7CA9c918EB6481EDb08aed71` |
 
 - **Network:** Polkadot Hub Testnet (chain ID 420420417)
-- **RPC:** `https://services.polkadothub-rpc.com/testnet`
+- **RPC:** `https://eth-rpc-testnet.polkadot.io/`
 
 ## Architecture
 

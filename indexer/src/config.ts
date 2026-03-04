@@ -40,6 +40,8 @@ export interface Config {
   s3SecretAccessKey: string;
   /** Custom S3 endpoint (for Cloudflare R2 / MinIO) */
   s3Endpoint: string;
+  /** Skip proposals created before this Asset Hub block (no balances tree available) */
+  minProposalBlock: number;
   /** Balance tier configuration */
   tiers: Tier[];
 }
@@ -58,6 +60,7 @@ export const config: Config = {
   s3AccessKeyId: process.env.S3_ACCESS_KEY_ID || "",
   s3SecretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "",
   s3Endpoint: process.env.S3_ENDPOINT || "",
+  minProposalBlock: parseInt(process.env.MIN_PROPOSAL_BLOCK || "0", 10),
   tiers: [
     {
       id: 0,

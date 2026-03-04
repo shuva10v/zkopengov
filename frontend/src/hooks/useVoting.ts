@@ -87,16 +87,12 @@ export function useVoting(proposalId: string, account: string | null, createdAtB
                 }
 
                 // Step 2: Look up the correct balances root for this proposal's block
-                let balancesTreeUrl: string | undefined;
-                if (createdAtBlock && config.registryAddress) {
-                    updateProgress('downloading-trees', 'Looking up balances root for proposal...');
-                    try {
-                        const { snapshotBlock } = await findBalancesRootForProposal(createdAtBlock);
-                        balancesTreeUrl = `${config.s3Url}/balances-trees/${snapshotBlock}.json`;
-                    } catch {
-                        // Contract not available — fall through to indexer default
-                    }
+                updateProgress('downloading-trees', 'Looking up balances root for proposal...');
+                if (!createdAtBlock || !config.registryAddress) {
+                    throw new Error('Cannot determine balances snapshot: proposal block or registry not available.');
                 }
+                const { snapshotBlock } = await findBalancesRootForProposal(createdAtBlock);
+                const balancesTreeUrl = `${config.s3Url}/balances-trees/${snapshotBlock}.json`;
 
                 // Step 3: Generate real ZK proof via client-lib
                 updateProgress('downloading-trees', 'Downloading tree data...');
@@ -109,7 +105,7 @@ export function useVoting(proposalId: string, account: string | null, createdAtB
                     proposalId,
                     voteChoice: choice,
                     ownershipTreeUrl,
-                    balancesTreeUrl: balancesTreeUrl || `${config.s3Url}/balances-trees/latest.json`,
+                    balancesTreeUrl,
                 };
 
                 updateProgress('generating-proof', 'Generating ZK proof (this may take a moment)...');

@@ -38,6 +38,9 @@ contract VotingRegistry is IVotingRegistry {
     mapping(uint256 => bytes32) public blockToBalancesRoot;
     uint256[] public submittedBlocks;
 
+    // Proposal registration: proposalId => Asset Hub block at which the proposal was created
+    mapping(bytes32 => uint256) public proposalBlock;
+
     address public owner;
     address public treeBuilder; // off-chain indexer service address
 
@@ -49,6 +52,7 @@ contract VotingRegistry is IVotingRegistry {
     event OwnershipRootUpdated(bytes32 root, uint256 registrationCount);
     event BalancesRootUpdated(bytes32 root, uint256 snapshotBlock);
     event TreeBuilderUpdated(address indexed oldBuilder, address indexed newBuilder);
+    event ProposalRegistered(bytes32 indexed proposalId, uint256 createdAtBlock);
 
     // ----------------------------------------------------------------
     // Modifiers
@@ -125,6 +129,26 @@ contract VotingRegistry is IVotingRegistry {
     }
 
     // ----------------------------------------------------------------
+    // Proposal registration (called by off-chain tree builder)
+    // ----------------------------------------------------------------
+
+    /// @notice Register a proposal with its Asset Hub creation block.
+    /// @param proposalId   keccak256(abi.encodePacked("polkadot-opengov", referendumIndex))
+    /// @param createdAtBlock The Asset Hub block at which the proposal was created.
+    function registerProposal(bytes32 proposalId, uint256 createdAtBlock) external onlyTreeBuilder {
+        require(createdAtBlock > 0, "Invalid block");
+        require(proposalBlock[proposalId] == 0, "Already registered");
+
+        proposalBlock[proposalId] = createdAtBlock;
+        emit ProposalRegistered(proposalId, createdAtBlock);
+    }
+
+    /// @notice Get the Asset Hub creation block for a registered proposal.
+    function getProposalBlock(bytes32 proposalId) external view returns (uint256) {
+        return proposalBlock[proposalId];
+    }
+
+    // ----------------------------------------------------------------
     // Admin
     // ----------------------------------------------------------------
 
@@ -165,13 +189,13 @@ contract VotingRegistry is IVotingRegistry {
 
     /// @notice Find the balances root for the latest snapshot taken at or before `proposalBlock`.
     /// @dev    Linear scan over submittedBlocks (unordered, ~365 entries/year — cheap for view).
-    function findBalancesRootForProposal(uint256 proposalBlock) external view returns (bytes32 root, uint256 snapshotBlock) {
+    function findBalancesRootForProposal(uint256 _proposalBlock) external view returns (bytes32 root, uint256 snapshotBlock) {
         uint256 bestBlock = 0;
         uint256 len = submittedBlocks.length;
 
         for (uint256 i = 0; i < len; i++) {
             uint256 b = submittedBlocks[i];
-            if (b <= proposalBlock && b > bestBlock) {
+            if (b <= _proposalBlock && b > bestBlock) {
                 bestBlock = b;
             }
         }

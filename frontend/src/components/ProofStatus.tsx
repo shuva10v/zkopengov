@@ -1,4 +1,5 @@
 import type { ProofStage } from '../hooks/useVoting';
+import { config, CHAIN_CONFIGS } from '../lib/config';
 
 interface ProofStatusProps {
     stage: ProofStage;
@@ -89,7 +90,18 @@ export default function ProofStatus({
             {txHash && (
                 <div className="proof-tx">
                     <span className="proof-tx-label">Transaction:</span>
-                    <code className="proof-tx-hash">{txHash}</code>
+                    {(() => {
+                        const explorer = CHAIN_CONFIGS[config.chainId]?.blockExplorerUrls?.[0];
+                        if (explorer) {
+                            const url = `${explorer.replace(/\/$/, '')}/tx/${txHash}`;
+                            return (
+                                <a href={url} target="_blank" rel="noopener noreferrer" className="proof-tx-hash proof-tx-link">
+                                    {txHash}
+                                </a>
+                            );
+                        }
+                        return <code className="proof-tx-hash">{txHash}</code>;
+                    })()}
                 </div>
             )}
 

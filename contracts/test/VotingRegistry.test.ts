@@ -320,6 +320,54 @@ describe("VotingRegistry", function () {
     }
   });
 
+  // ---- Proposal registration ----
+
+  it("Should allow tree builder to register a proposal", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    const proposalId = randomBytes32();
+    await expect(
+      registry.connect(treeBuilder).registerProposal(proposalId, 5000)
+    )
+      .to.emit(registry, "ProposalRegistered")
+      .withArgs(proposalId, 5000);
+
+    expect(await registry.getProposalBlock(proposalId)).to.equal(5000);
+  });
+
+  it("Should reject duplicate proposal registration", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    const proposalId = randomBytes32();
+    await registry.connect(treeBuilder).registerProposal(proposalId, 5000);
+
+    await expect(
+      registry.connect(treeBuilder).registerProposal(proposalId, 6000)
+    ).to.be.revertedWith("Already registered");
+  });
+
+  it("Should reject proposal registration from non-tree-builder", async function () {
+    const { registry, other } = await loadFixture(deployRegistryFixture);
+
+    await expect(
+      registry.connect(other).registerProposal(randomBytes32(), 5000)
+    ).to.be.revertedWith("Not tree builder");
+  });
+
+  it("Should reject proposal registration with zero block", async function () {
+    const { registry, treeBuilder } = await loadFixture(deployRegistryFixture);
+
+    await expect(
+      registry.connect(treeBuilder).registerProposal(randomBytes32(), 0)
+    ).to.be.revertedWith("Invalid block");
+  });
+
+  it("Should return 0 for unregistered proposal", async function () {
+    const { registry } = await loadFixture(deployRegistryFixture);
+
+    expect(await registry.getProposalBlock(randomBytes32())).to.equal(0);
+  });
+
   // ---- View helpers ----
 
   it("Should return correct registration count and data", async function () {

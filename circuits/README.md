@@ -89,6 +89,68 @@ Tests require the circuit to be compiled first (`npm run compile`).
 | 3 | 10,000 - 100,000 | 10 |
 | 4 | 100,000+ | 15 |
 
+## Mainnet Phase 2 Ceremony
+
+For production deployment, run a multi-contributor Phase 2 ceremony instead of the single-contribution dev setup.
+
+### 1. Compile the circuit and download Powers of Tau
+
+```bash
+npm run compile
+mkdir -p build
+curl -L -o build/pot16_final.ptau https://storage.googleapis.com/zkevm/ptau/powersOfTau28_hez_final_16.ptau
+```
+
+This is the Hermez community ptau (54 contributors, pot16 supports up to 2^16 constraints).
+
+### 2. Generate initial zkey
+
+```bash
+npx snarkjs groth16 setup build/PrivateVote.r1cs build/pot16_final.ptau build/circuit_0000.zkey
+```
+
+### 3. Multiple contributions
+
+Each contribution adds independent entropy. Even if all but one contributor is compromised, the setup remains secure.
+
+```bash
+# Contribution 1 — interactive (type random keyboard input when prompted)
+npx snarkjs zkey contribute build/circuit_0000.zkey build/circuit_0001.zkey \
+  --name="contributor-1" -v
+
+# Contribution 2 — OS entropy
+npx snarkjs zkey contribute build/circuit_0001.zkey build/circuit_0002.zkey \
+  --name="contributor-2" -v -e="$(head -c 256 /dev/urandom | base64)"
+
+# Contribution 3 — another person / different machine
+npx snarkjs zkey contribute build/circuit_0002.zkey build/circuit_0003.zkey \
+  --name="contributor-3" -v
+```
+
+Add as many contributors as needed. Each one strengthens the ceremony.
+
+### 4. Apply random beacon
+
+Use a future block hash as a beacon — this proves no contributor could have predicted the final entropy. Announce the block number before it's mined, then use that hash:
+
+```bash
+npx snarkjs zkey beacon build/circuit_0003.zkey build/circuit_final.zkey \
+  <block-hash-hex> 10 --name="final-beacon"
+```
+
+### 5. Verify the final zkey
+
+```bash
+npx snarkjs zkey verify build/PrivateVote.r1cs build/pot16_final.ptau build/circuit_final.zkey
+```
+
+### 6. Export verification key and Solidity verifier
+
+```bash
+npx snarkjs zkey export verificationkey build/circuit_final.zkey build/verification_key.json
+npx snarkjs zkey export solidityverifier build/circuit_final.zkey build/Groth16Verifier.sol
+```
+
 ## Output Artifacts
 
 After a full build, the `build/` directory contains:

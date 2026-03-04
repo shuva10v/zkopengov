@@ -17,4 +17,6 @@ export const VOTING_BOOTH_ABI = [
 export const VOTING_REGISTRY_ABI = [
     "function isKnownOwnershipRoot(bytes32) view returns (bool)",
     "function isKnownBalancesRoot(bytes32) view returns (bool)",
+    "function getProposalBlock(bytes32) view returns (uint256)",
+    "function findBalancesRootForProposal(uint256) view returns (bytes32 root, uint256 snapshotBlock)",
 ];
