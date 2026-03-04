@@ -187,6 +187,43 @@ export class PoseidonMerkleTree {
   }
 
   /**
+   * Bulk-insert an array of leaves and build the tree bottom-up.
+   * Much faster than repeated insert() — O(N) hashes instead of O(N * depth).
+   */
+  bulkInsert(newLeaves: bigint[]): void {
+    const capacity = 2 ** this.depth;
+    if (this.nextIndex + newLeaves.length > capacity) {
+      throw new Error(
+        `Tree overflow: capacity ${capacity}, have ${this.nextIndex}, inserting ${newLeaves.length}`
+      );
+    }
+
+    // Place all leaves at level 0
+    for (let i = 0; i < newLeaves.length; i++) {
+      const idx = this.nextIndex + i;
+      this.layers[0][idx] = newLeaves[i];
+      this.leaves.push(newLeaves[i]);
+    }
+
+    const startIdx = this.nextIndex;
+    this.nextIndex += newLeaves.length;
+
+    // Rebuild internal levels bottom-up
+    let levelStart = Math.floor(startIdx / 2);
+    let levelEnd = Math.floor((this.nextIndex - 1) / 2);
+
+    for (let level = 0; level < this.depth; level++) {
+      for (let i = levelStart; i <= levelEnd; i++) {
+        const left = this.getNode(level, i * 2);
+        const right = this.getNode(level, i * 2 + 1);
+        this.layers[level + 1][i] = this.hash(left, right);
+      }
+      levelStart = Math.floor(levelStart / 2);
+      levelEnd = Math.floor(levelEnd / 2);
+    }
+  }
+
+  /**
    * Serialize the tree to a plain JSON-compatible object.
    * We only store leaves + depth; the full tree can be rebuilt.
    */
@@ -204,11 +241,7 @@ export class PoseidonMerkleTree {
   static fromJSON(data: PoseidonMerkleTreeJSON, poseidon: any): PoseidonMerkleTree {
     const tree = new PoseidonMerkleTree(data.depth, poseidon);
     const leaves = data.leaves.map((s) => BigInt(s));
-
-    for (const leaf of leaves) {
-      tree.insert(leaf);
-    }
-
+    tree.bulkInsert(leaves);
     return tree;
   }
 }

@@ -14,8 +14,8 @@ include "lib/RangeProof.circom";
 // 5. The vote choice is valid (0=nay, 1=aye, 2=abstain)
 //
 // Parameters:
-//   OWNERSHIP_DEPTH - depth of the ownership Merkle tree (20 => ~1M leaves)
-//   BALANCES_DEPTH  - depth of the balances Merkle tree (20 => ~1M leaves)
+//   OWNERSHIP_DEPTH - depth of the ownership Merkle tree (21 => ~2M leaves)
+//   BALANCES_DEPTH  - depth of the balances Merkle tree (21 => ~2M leaves)
 
 template PrivateVote(OWNERSHIP_DEPTH, BALANCES_DEPTH) {
 
@@ -132,6 +132,6 @@ template PrivateVote(OWNERSHIP_DEPTH, BALANCES_DEPTH) {
     voteCheck2 === 0;
 }
 
-// Instantiate the main component with depth 20 for both trees.
+// Instantiate the main component with depth 21 for both trees (~2M leaves each).
 // Public inputs: ownershipRoot, balancesRoot, proposalId, voteChoice, tier, nullifier, tierConfig
 component main {public [ownershipRoot, balancesRoot, proposalId, voteChoice, tier, nullifier, tierConfig]} = PrivateVote(20, 20);

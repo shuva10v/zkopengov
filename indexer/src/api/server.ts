@@ -1,40 +1,37 @@
 /**
- * Express REST API server.
+ * Indexer state types.
  *
- * Serves tree data and indexer status. All data is served as full dumps
- * to preserve privacy — no per-address queries are supported.
+ * Tree data is uploaded to S3 instead of served via REST API.
  */
 
-import express, { Application } from "express";
-import { createRoutes } from "./routes";
-import { config } from "../config";
-
-/** A single leaf in the ownership tree response */
+/** A single leaf in the ownership tree */
 export interface OwnershipLeafData {
   index: number;
   address: string;
   commitment: string;
 }
 
-/** A single leaf in the balances tree response */
+/** A single leaf in the balances tree */
 export interface BalancesLeafData {
   index: number;
   address: string;
   balance: string;
 }
 
-/** Shape of the full ownership tree response payload */
+/** Shape of the full ownership tree payload */
 export interface OwnershipTreePayload {
   leaves: OwnershipLeafData[];
 }
 
-/** Shape of the full balances tree response payload */
+/** Shape of the full balances tree payload */
 export interface BalancesTreePayload {
+  root: string;
+  snapshotBlock: number;
   leaves: BalancesLeafData[];
 }
 
 /**
- * Mutable state that the indexer main loop populates and the API reads.
+ * Mutable state that the indexer main loop populates.
  */
 export interface IndexerState {
   ownershipRoot: string;
@@ -67,59 +64,4 @@ export function createDefaultState(): IndexerState {
     balancesTreeData: null,
     balancesTreeUpdatedAt: "",
   };
-}
-
-/**
- * Create and configure the Express application.
- *
- * @param getState - Function that returns the current IndexerState
- * @returns Configured Express Application
- */
-export function createApp(getState: () => IndexerState): Application {
-  const app = express();
-
-  // Middleware
-  app.use(express.json());
-
-  // CORS — allow all origins for hackathon/demo
-  app.use((_req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Origin, X-Requested-With, Content-Type, Accept"
-    );
-    next();
-  });
-
-  // Routes
-  const routes = createRoutes(getState);
-  app.use(routes);
-
-  return app;
-}
-
-/**
- * Start the HTTP server.
- *
- * @param getState - Function that returns the current IndexerState
- * @param port - Port to listen on (defaults to config.port)
- * @returns The HTTP server instance
- */
-export function startServer(
-  getState: () => IndexerState,
-  port?: number
-): ReturnType<Application["listen"]> {
-  const app = createApp(getState);
-  const listenPort = port || config.port;
-
-  const server = app.listen(listenPort, () => {
-    console.log(`[server] REST API listening on port ${listenPort}`);
-    console.log(`[server] Endpoints:`);
-    console.log(`  GET http://localhost:${listenPort}/api/v1/status`);
-    console.log(`  GET http://localhost:${listenPort}/api/v1/ownership-tree`);
-    console.log(`  GET http://localhost:${listenPort}/api/v1/balances-tree`);
-    console.log(`  GET http://localhost:${listenPort}/api/v1/tiers`);
-  });
-
-  return server;
 }

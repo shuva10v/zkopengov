@@ -88,7 +88,7 @@ export async function poseidonHash(inputs: bigint[]): Promise<bigint> {
 // Poseidon Merkle Tree (matching circuit's MerkleProof template)
 // ---------------------------------------------------------------------------
 
-const TREE_DEPTH = 20;
+const TREE_DEPTH = 21;
 
 export class TestMerkleTree {
   depth: number;

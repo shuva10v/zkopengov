@@ -52,16 +52,24 @@ export async function buildBalancesTree(
     a.toLowerCase().localeCompare(b.toLowerCase())
   );
 
-  for (const address of sortedAddresses) {
+  // Compute all leaf hashes first
+  console.log(`[balances-tree] Computing ${sortedAddresses.length} leaf hashes...`);
+  const leaves: bigint[] = new Array(sortedAddresses.length);
+  for (let i = 0; i < sortedAddresses.length; i++) {
+    const address = sortedAddresses[i];
     const balance = balances.get(address)!;
     const addrBigInt = addressToBigInt(address);
-
-    // Leaf = Poseidon(address, balance)
     const leafHash = poseidon([addrBigInt, balance]);
-    const leaf = BigInt(F.toString(leafHash));
+    leaves[i] = BigInt(F.toString(leafHash));
 
-    tree.insert(leaf);
+    if ((i + 1) % 200_000 === 0) {
+      console.log(`[balances-tree] Leaf hashes: ${i + 1}/${sortedAddresses.length}`);
+    }
   }
+
+  // Bulk-insert all leaves and build tree bottom-up (O(N) instead of O(N*depth))
+  console.log(`[balances-tree] Building tree bottom-up...`);
+  tree.bulkInsert(leaves);
 
   return tree;
 }

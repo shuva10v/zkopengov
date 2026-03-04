@@ -23,8 +23,6 @@ export interface Config {
   treeBuilderPrivateKey: string;
   /** Depth of both Merkle trees (max 2^depth leaves) */
   treeDepth: number;
-  /** HTTP port for the REST API */
-  port: number;
   /** Whether to run in demo mode with mock data (no chain connection) */
   demoMode: boolean;
   /** Number of mock accounts to generate in demo mode */
@@ -51,8 +49,7 @@ export const config: Config = {
   evmRpc: process.env.EVM_RPC || "http://localhost:8545",
   registryAddress: process.env.REGISTRY_ADDRESS || "",
   treeBuilderPrivateKey: process.env.TREE_BUILDER_KEY || "",
-  treeDepth: parseInt(process.env.TREE_DEPTH || "21", 10),
-  port: parseInt(process.env.PORT || "3001", 10),
+  treeDepth: parseInt(process.env.TREE_DEPTH || "20", 10),
   demoMode: process.env.DEMO_MODE === "true" || (!process.env.POLKADOT_RPC && !process.env.REGISTRY_ADDRESS),
   demoAccountCount: parseInt(process.env.DEMO_ACCOUNT_COUNT || "15", 10),
   useArchiveNode: process.env.USE_ARCHIVE_NODE !== "false",

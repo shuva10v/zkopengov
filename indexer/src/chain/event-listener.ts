@@ -9,7 +9,7 @@ import { ethers } from "ethers";
 
 /** ABI fragment for the Registered event */
 const REGISTRY_ABI = [
-  "event Registered(uint256 indexed index, address indexed account, uint256 commitment)",
+  "event Registered(uint256 indexed index, address indexed account, bytes32 commitment)",
 ];
 
 /** Parsed registration event data */
@@ -89,7 +89,7 @@ export async function fetchRegistrations(
 export function listenForRegistrations(
   provider: ethers.Provider,
   registryAddress: string,
-  callback: (event: RegistrationEvent) => void,
+  callback: (event: RegistrationEvent) => void | Promise<void>,
   startAfterIndex: number = -1,
   intervalMs: number = 30_000
 ): () => void {
@@ -127,7 +127,7 @@ export function listenForRegistrations(
         console.log(
           `[event-listener] New registration: index=${registration.index}, address=${registration.address}`
         );
-        callback(registration);
+        await callback(registration);
       }
     } catch (err) {
       console.warn("[event-listener] Polling error:", err);

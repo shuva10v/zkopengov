@@ -24,13 +24,12 @@ import { generateMockBalances } from "./chain/balance-fetcher";
 import { hasCachedBalances, loadCachedBalances, saveCachedBalances, listCachedBlocks } from "./cache";
 import { generateMockRegistrations, RegistrationEvent, fetchRegistrations, listenForRegistrations } from "./chain/event-listener";
 import { submitOwnershipRoot, submitBalancesRoot } from "./submitter/root-submitter";
-import { uploadBalancesTree as uploadBalancesTreeToS3 } from "./submitter/s3-uploader";
+import { uploadBalancesTree as uploadBalancesTreeToS3, uploadOwnershipTree as uploadOwnershipTreeToS3 } from "./submitter/s3-uploader";
 import {
   IndexerState,
   OwnershipLeafData,
   BalancesLeafData,
   createDefaultState,
-  startServer,
 } from "./api/server";
 
 /** Global mutable state shared between the indexer loop and the API */
@@ -78,6 +77,11 @@ async function rebuildOwnershipTree(
   console.log(
     `[indexer] Ownership tree built: root=${state.ownershipRoot.slice(0, 20)}..., leaves=${state.registrationCount}`
   );
+
+  // Upload to S3
+  if (config.s3Bucket && state.ownershipTreeData) {
+    await uploadOwnershipTreeToS3(state.ownershipTreeData);
+  }
 }
 
 /**
@@ -107,7 +111,7 @@ async function rebuildBalancesTree(
 
   state.balancesRoot = balancesTree.getRoot().toString();
   state.snapshotBlock = snapshotBlock;
-  state.balancesTreeData = { leaves };
+  state.balancesTreeData = { root: state.balancesRoot, snapshotBlock, leaves };
   state.balancesTreeUpdatedAt = new Date().toISOString();
 
   console.log(
@@ -117,9 +121,9 @@ async function rebuildBalancesTree(
 
 /**
  * Handle a new registration event by inserting into the existing ownership tree
- * incrementally (no full rebuild needed).
+ * incrementally (no full rebuild needed), then submit the updated root on-chain.
  */
-function handleNewRegistration(event: RegistrationEvent): void {
+async function handleNewRegistration(event: RegistrationEvent): Promise<void> {
   if (!ownershipTree || !poseidon) {
     console.warn("[indexer] Cannot handle registration — tree not initialized");
     return;
@@ -136,7 +140,7 @@ function handleNewRegistration(event: RegistrationEvent): void {
 
   // Update API state
   const newLeaf: OwnershipLeafData = {
-    index: event.index,
+    index: state.ownershipTreeData ? state.ownershipTreeData.leaves.length : 0,
     address: event.address,
     commitment: event.commitment,
   };
@@ -152,6 +156,43 @@ function handleNewRegistration(event: RegistrationEvent): void {
   console.log(
     `[indexer] Registration added incrementally: index=${event.index}, new root=${state.ownershipRoot.slice(0, 20)}...`
   );
+
+  // Upload updated tree to S3
+  if (config.s3Bucket && state.ownershipTreeData) {
+    await uploadOwnershipTreeToS3(state.ownershipTreeData);
+  }
+
+  // Submit updated ownership root on-chain
+  await submitOwnershipRootOnChain();
+}
+
+/**
+ * Submit the current ownership root on-chain.
+ */
+async function submitOwnershipRootOnChain(): Promise<void> {
+  if (
+    config.demoMode ||
+    !config.registryAddress ||
+    !config.treeBuilderPrivateKey ||
+    !ownershipTree
+  ) {
+    console.log("[indexer] Skipping ownership root submission (demo mode or missing config)");
+    return;
+  }
+
+  try {
+    const provider = new ethers.JsonRpcProvider(config.evmRpc);
+    const signer = new ethers.Wallet(config.treeBuilderPrivateKey, provider);
+
+    await submitOwnershipRoot(
+      signer,
+      config.registryAddress,
+      ownershipTree.getRoot(),
+      currentRegistrations.length
+    );
+  } catch (err) {
+    console.error("[indexer] Failed to submit ownership root:", err);
+  }
 }
 
 /**
@@ -168,19 +209,14 @@ async function submitRoots(): Promise<void> {
   }
 
   try {
-    const provider = new ethers.JsonRpcProvider(config.evmRpc);
-    const signer = new ethers.Wallet(config.treeBuilderPrivateKey, provider);
+    // Submit ownership root
+    await submitOwnershipRootOnChain();
 
-    if (ownershipTree) {
-      await submitOwnershipRoot(
-        signer,
-        config.registryAddress,
-        ownershipTree.getRoot(),
-        ownershipTree.getLeafCount()
-      );
-    }
-
+    // Submit balances root
     if (balancesTree) {
+      const provider = new ethers.JsonRpcProvider(config.evmRpc);
+      const signer = new ethers.Wallet(config.treeBuilderPrivateKey, provider);
+
       await submitBalancesRoot(
         signer,
         config.registryAddress,
@@ -374,9 +410,6 @@ async function main(): Promise<void> {
   } else {
     await runLiveMode();
   }
-
-  // Start REST API
-  startServer(() => state);
 
   console.log("\n[indexer] Indexer is running. Press Ctrl+C to stop.");
 }

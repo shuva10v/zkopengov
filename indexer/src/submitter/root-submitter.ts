@@ -13,6 +13,8 @@ const REGISTRY_ABI = [
   "function submitBalancesRoot(bytes32 root, uint256 snapshotBlock) external",
   "function latestOwnershipRoot() external view returns (bytes32)",
   "function latestBalancesRoot() external view returns (bytes32)",
+  "function latestOwnershipRegCount() external view returns (uint256)",
+  "function getBalancesRootForBlock(uint256 blockNumber) external view returns (bytes32)",
 ];
 
 /** Convert a bigint to a bytes32 hex string */
@@ -34,12 +36,21 @@ export async function submitOwnershipRoot(
   registryAddress: string,
   root: bigint,
   regCount: number
-): Promise<ethers.TransactionReceipt> {
+): Promise<ethers.TransactionReceipt | null> {
+  const contract = new ethers.Contract(registryAddress, REGISTRY_ABI, signer);
+
+  // Skip if on-chain root already matches
+  const currentRegCount = Number(await contract.latestOwnershipRegCount());
+  if (currentRegCount >= regCount) {
+    console.log(
+      `[root-submitter] Ownership root already up-to-date (on-chain regCount=${currentRegCount}, local=${regCount}), skipping`
+    );
+    return null;
+  }
+
   console.log(
     `[root-submitter] Submitting ownership root: ${root.toString().slice(0, 20)}... (${regCount} registrations)`
   );
-
-  const contract = new ethers.Contract(registryAddress, REGISTRY_ABI, signer);
 
   const tx = await contract.submitOwnershipRoot(bigintToBytes32(root), regCount);
   console.log(`[root-submitter] TX hash: ${tx.hash}`);
@@ -66,12 +77,21 @@ export async function submitBalancesRoot(
   registryAddress: string,
   root: bigint,
   snapshotBlock: number
-): Promise<ethers.TransactionReceipt> {
+): Promise<ethers.TransactionReceipt | null> {
+  const contract = new ethers.Contract(registryAddress, REGISTRY_ABI, signer);
+
+  // Skip if this block already has a root on-chain
+  const existingRoot = await contract.getBalancesRootForBlock(snapshotBlock);
+  if (existingRoot !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+    console.log(
+      `[root-submitter] Balances root for block ${snapshotBlock} already submitted, skipping`
+    );
+    return null;
+  }
+
   console.log(
     `[root-submitter] Submitting balances root: ${root.toString().slice(0, 20)}... (snapshot block ${snapshotBlock})`
   );
-
-  const contract = new ethers.Contract(registryAddress, REGISTRY_ABI, signer);
 
   const tx = await contract.submitBalancesRoot(bigintToBytes32(root), snapshotBlock);
   console.log(`[root-submitter] TX hash: ${tx.hash}`);

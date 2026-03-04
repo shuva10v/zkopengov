@@ -30,10 +30,17 @@ function cacheFilePath(blockNumber: number): string {
   return path.join(DATA_DIR, `balances-${blockNumber}.json`);
 }
 
+const SKIP_CACHE = process.env.SKIP_CACHE === "1" || process.env.SKIP_CACHE === "true";
+
 /**
  * Check if we have cached balances for a given block.
+ * Returns false when SKIP_CACHE=1 is set.
  */
 export function hasCachedBalances(blockNumber: number): boolean {
+  if (SKIP_CACHE) {
+    console.log(`[cache] SKIP_CACHE is set, ignoring cache for block ${blockNumber}`);
+    return false;
+  }
   return fs.existsSync(cacheFilePath(blockNumber));
 }
 
@@ -49,9 +56,17 @@ export function loadCachedBalances(blockNumber: number): Map<string, bigint> | n
   const raw = fs.readFileSync(filePath, "utf-8");
   const data: CachedBalances = JSON.parse(raw);
 
+  // Normalize addresses: convert 32-byte AccountId32 (with 0xEE suffix) to 20-byte H160.
+  // Older cache files stored full AccountId32; newer ones store H160 directly.
+  const EE_SUFFIX = "eeeeeeeeeeeeeeeeeeeeeeee";
   const balances = new Map<string, bigint>();
   for (const [addr, bal] of Object.entries(data.balances)) {
-    balances.set(addr, BigInt(bal));
+    const lower = addr.toLowerCase();
+    // 32-byte AccountId32 = "0x" + 64 hex chars; 20-byte H160 = "0x" + 40 hex chars
+    const normalizedAddr = (lower.length === 66 && lower.endsWith(EE_SUFFIX))
+      ? "0x" + lower.slice(2, 42)
+      : lower;
+    balances.set(normalizedAddr, BigInt(bal));
   }
 
   console.log(
@@ -90,8 +105,10 @@ export function saveCachedBalances(
 
 /**
  * List all cached block numbers (sorted descending).
+ * Returns empty when SKIP_CACHE=1 is set.
  */
 export function listCachedBlocks(): number[] {
+  if (SKIP_CACHE) return [];
   ensureDataDir();
   return fs
     .readdirSync(DATA_DIR)

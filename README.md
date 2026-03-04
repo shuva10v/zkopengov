@@ -108,12 +108,12 @@ cd e2e && npm test
 
 | Contract | Address |
 |----------|---------|
-| Groth16Verifier | `0xbC2b672Fd34fE4Dce6030E3F4e7D5c954956143C` |
-| VotingRegistry | `0xc7975897681dAcD692cC163f1961452248c5cf74` |
-| VotingBooth | `0x29bdC61A2E2D48F412f53Ffe6102A5bd12CF66AF` |
+| Groth16Verifier | `0x25aa6825fCD95B538f65588A37FD5777d4AdfEfA` |
+| VotingRegistry | `0xf23E78222086faF9d3EcCCE625A5F108102D9489` |
+| VotingBooth | `0x36665d1F13da2Bc69BA5b7500B38aE5b392B41B1` |
 
 - **Network:** Polkadot Hub Testnet (chain ID 420420417)
-- **RPC:** `https://services.polkadothub-rpc.com/testnet`
+- **RPC:** `https://eth-rpc-testnet.polkadot.io/`
 - **Compiler:** resolc 1.0.0 (PolkaVM)
 
 ## Privacy Model

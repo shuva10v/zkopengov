@@ -24,7 +24,7 @@ export async function connectToChain(
   const rpcUrl = endpoint || config.polkadotRpc;
   console.log(`[polkadot-rpc] Connecting to ${rpcUrl}...`);
 
-  const provider = new WsProvider(rpcUrl);
+  const provider = new WsProvider(rpcUrl, /* autoConnect */ undefined, /* headers */ {}, /* timeout */ 120_000);
   apiInstance = await ApiPromise.create({ provider });
 
   await apiInstance.isReady;
@@ -137,10 +137,36 @@ export async function getFirstBlockOfToday(): Promise<{
     `[polkadot-rpc] Current block: ${currentBlock}, estimated midnight block: ${estBlock}`
   );
 
-  // Binary search in a window around the estimate
-  const SEARCH_MARGIN = 30; // ~3 minutes each side
-  let lo = Math.max(1, estBlock - SEARCH_MARGIN);
-  let hi = Math.min(currentBlock, estBlock + SEARCH_MARGIN);
+  // Binary search in a window around the estimate.
+  // Start with a wide margin (~30 minutes each side) to handle block time variance.
+  // If the window doesn't straddle midnight, expand exponentially until it does.
+  const INITIAL_MARGIN = 300; // ~30 minutes each side at 6s/block
+  let lo = Math.max(1, estBlock - INITIAL_MARGIN);
+  let hi = Math.min(currentBlock, estBlock + INITIAL_MARGIN);
+
+  // Verify the window actually straddles midnight — expand if needed
+  let loTs = await getBlockTimestamp(api, lo);
+  let hiTs = await getBlockTimestamp(api, hi);
+
+  let expansions = 0;
+  while (loTs >= midnightMs && lo > 1 && expansions < 10) {
+    // lo is still after midnight — expand left
+    lo = Math.max(1, lo - INITIAL_MARGIN * (2 ** expansions));
+    loTs = await getBlockTimestamp(api, lo);
+    expansions++;
+  }
+
+  expansions = 0;
+  while (hiTs < midnightMs && hi < currentBlock && expansions < 10) {
+    // hi is still before midnight — expand right
+    hi = Math.min(currentBlock, hi + INITIAL_MARGIN * (2 ** expansions));
+    hiTs = await getBlockTimestamp(api, hi);
+    expansions++;
+  }
+
+  console.log(
+    `[polkadot-rpc] Binary search window: #${lo} (${new Date(loTs).toISOString()}) — #${hi} (${new Date(hiTs).toISOString()})`
+  );
 
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);

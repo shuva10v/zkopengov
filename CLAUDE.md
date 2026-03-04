@@ -44,7 +44,7 @@ F: Frontend (React)            → frontend/
 - F (frontend) → integrates all
 
 ## Key Technical Decisions
-- Circuit: single `PrivateVote.circom` with depth-20 Merkle trees (~1M leaves)
+- Circuit: single `PrivateVote.circom` with depth-21 Merkle trees (~2M leaves)
 - Poseidon hashing: circomlib in circuits, circomlibjs in JS (must match exactly)
 - Privacy: indexer serves FULL tree dumps only (no per-address queries)
 - Client rebuilds trees locally and computes own Merkle paths in-browser

@@ -28,6 +28,7 @@ contract VotingRegistry is IVotingRegistry {
     // Ownership tree roots
     mapping(bytes32 => bool) public knownOwnershipRoots;
     bytes32 public latestOwnershipRoot;
+    uint256 public latestOwnershipRegCount;
 
     // Balances tree roots (root => snapshot block number)
     mapping(bytes32 => uint256) public balancesRootBlock;
@@ -103,6 +104,7 @@ contract VotingRegistry is IVotingRegistry {
 
         knownOwnershipRoots[root] = true;
         latestOwnershipRoot = root;
+        latestOwnershipRegCount = regCount;
         emit OwnershipRootUpdated(root, regCount);
     }
 

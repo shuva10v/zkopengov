@@ -20,16 +20,16 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {},
-    westendAssetHub: {
-      url: "https://westend-asset-hub-eth-rpc.polkadot.io",
-      chainId: 420420421,
+    polkadotHub: {
+      url: "https://eth-rpc.polkadot.io/",
+      chainId: 420420419,
       accounts: process.env.DEPLOYER_PRIVATE_KEY
         ? [process.env.DEPLOYER_PRIVATE_KEY]
         : [],
       polkadot: true,
     },
     polkadotHubTestnet: {
-      url: "https://services.polkadothub-rpc.com/testnet",
+      url: "https://eth-rpc-testnet.polkadot.io/",
       chainId: 420420417,
       accounts: process.env.DEPLOYER_PRIVATE_KEY
         ? [process.env.DEPLOYER_PRIVATE_KEY]

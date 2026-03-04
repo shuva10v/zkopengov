@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env.local
+.env.*.local
+
+# Circuit artifacts (large binaries, copied from circuits/build/)
+*.wasm
+*.zkey

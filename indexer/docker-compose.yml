@@ -14,7 +14,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 6g
+          memory: 8g
     restart: unless-stopped
 
 volumes:

@@ -20,4 +20,4 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 3001
 
-CMD ["node", "--max-old-space-size=4096", "dist/index.js"]
+CMD ["node", "--max-old-space-size=6144", "--expose-gc", "dist/index.js"]
