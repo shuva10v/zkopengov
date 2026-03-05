@@ -227,14 +227,25 @@ export function useRegistration(account: string | null): RegistrationState {
         }
     }, [isRegistered, startTreePolling]);
 
-    // Check registration status when account changes
+    // Reset state and re-check when account changes
     useEffect(() => {
+        setTxHash(null);
+        setGeneratedSecret(null);
+        setError(null);
+        setIsTreeReady(false);
+        setIsWaitingForTree(false);
+        if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+        }
+
         if (account) {
             checkRegistration(account);
         } else {
             setIsRegistered(false);
         }
         setHasStoredSecret(hasSecret());
+        setRegistrationIndex(loadRegistrationIndex() ?? -1);
     }, [account, checkRegistration]);
 
     // Check stored secret and registration index on mount
