@@ -231,6 +231,47 @@ export default function Home() {
                         same registration.
                     </p>
                 </FAQItem>
+
+                <FAQItem question="How does tier-based voting work?">
+                    <p>
+                        Instead of "1 DOT = 1 vote" (which gives whales disproportionate power),
+                        zkOpenGov groups voters into balance tiers. Each tier has a fixed vote weight,
+                        so a large holder gets more influence — but not proportionally more.
+                    </p>
+                    <table className="faq-tier-table">
+                        <thead>
+                            <tr>
+                                <th>Tier</th>
+                                <th>Balance Range</th>
+                                <th>Vote Weight</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>0</td><td>1 – 100 DOT</td><td>1</td></tr>
+                            <tr><td>1</td><td>100 – 1,000 DOT</td><td>3</td></tr>
+                            <tr><td>2</td><td>1,000 – 10,000 DOT</td><td>6</td></tr>
+                            <tr><td>3</td><td>10,000 – 100,000 DOT</td><td>10</td></tr>
+                            <tr><td>4</td><td>100,000+ DOT</td><td>15</td></tr>
+                        </tbody>
+                    </table>
+                    <p>
+                        A 100,000 DOT holder gets 15x the weight of a 1 DOT holder — not
+                        100,000x. Your tier is determined by the ZK circuit from your balance
+                        in the snapshot and is never revealed to anyone.
+                    </p>
+                </FAQItem>
+
+                <FAQItem question="Is zkOpenGov open source?">
+                    <p>
+                        Yes, the entire project is open source under the MIT license. This includes
+                        the ZK circuits, smart contracts, indexer, relayer, client library, and frontend.
+                    </p>
+                    <p>
+                        <a href="https://github.com/shuva10v/zkopengov" target="_blank" rel="noopener noreferrer">
+                            github.com/shuva10v/zkopengov
+                        </a>
+                    </p>
+                </FAQItem>
             </div>
         </div>
     );

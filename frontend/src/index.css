@@ -601,6 +601,38 @@ code {
     text-decoration: underline;
 }
 
+.faq-tier-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 0.85rem;
+}
+
+.faq-tier-table th {
+    text-align: left;
+    padding: 8px 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.faq-tier-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.faq-tier-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.faq-tier-table tbody tr:hover {
+    background: var(--bg-card-hover);
+}
+
 /* --- Section --- */
 .section-title {
     font-size: 1.3rem;
