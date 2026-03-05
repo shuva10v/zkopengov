@@ -16,7 +16,7 @@ import { buildBalancesTree } from "../src/trees/balances-tree";
 import { submitBalancesRoot } from "../src/submitter/root-submitter";
 import { config } from "../src/config";
 
-const BLOCKS_TO_BACKFILL = [12865645, 12891136];
+const BLOCKS_TO_BACKFILL = [12865645, 12891136, 12938506];
 
 async function main() {
   if (!config.registryAddress || !config.treeBuilderPrivateKey) {

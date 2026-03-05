@@ -1,5 +1,7 @@
 # zkOpenGov — Private Voting for Polkadot OpenGov
 
+**Website:** [https://zkopengov.org](https://zkopengov.org)
+
 Privacy-preserving tier-based voting layer for Polkadot OpenGov using ZK-SNARKs.
 
 ## Overview

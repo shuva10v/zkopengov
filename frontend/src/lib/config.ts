@@ -7,6 +7,8 @@ export const config = {
     s3Url: import.meta.env.VITE_S3_URL || 'https://zkopengov-polkadot.s3.us-west-2.amazonaws.com',
     /** Expected chain ID. Defaults to Polkadot Hub Testnet (420420417). */
     chainId: Number(import.meta.env.VITE_CHAIN_ID || '420420417'),
+    /** Hide proposals created before this block (no balances snapshot available). */
+    minProposalBlock: Number(import.meta.env.VITE_MIN_PROPOSAL_BLOCK || '0'),
 };
 
 /** Known Polkadot EVM network definitions for wallet_addEthereumChain. */

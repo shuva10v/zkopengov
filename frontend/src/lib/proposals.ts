@@ -6,6 +6,7 @@
  */
 
 import { ethers } from 'ethers';
+import { config } from './config';
 
 export interface Proposal {
     /** Unique bytes32 hex identifier for our contracts */
@@ -195,7 +196,11 @@ async function doFetchProposals(): Promise<Proposal[]> {
     }
 
     const items: any[] = data.data?.list || [];
-    return items.map(parseReferendum);
+    const proposals = items.map(parseReferendum);
+    if (config.minProposalBlock > 0) {
+        return proposals.filter((p) => p.createdAtBlock >= config.minProposalBlock);
+    }
+    return proposals;
 }
 
 const POLKASSEMBLY_API = 'https://polkadot.polkassembly.io/api/v1';
